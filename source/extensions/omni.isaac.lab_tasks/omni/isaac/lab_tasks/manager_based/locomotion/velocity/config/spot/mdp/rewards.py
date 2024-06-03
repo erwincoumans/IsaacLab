@@ -106,33 +106,34 @@ class GaitReward(ManagerTermBase):
             The reward value.
         """
         # for synchronous feet, the contact (air) times of two feet should match
-        syc_reward_0 = self._syc_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[0][1])
-        syc_reward_1 = self._syc_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[1][1])
-        syc_reward = syc_reward_0 * syc_reward_1
+        sync_reward_0 = self._sync_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[0][1])
+        sync_reward_1 = self._sync_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[1][1])
+        sync_reward = sync_reward_0 * sync_reward_1
         # for asynchronous feet, the contact time of one foot should match the air time of the other one
-        asyc_reward_0 = self._asyc_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][0])
-        asyc_reward_1 = self._asyc_reward_func(self.synced_feet_pairs[0][1], self.synced_feet_pairs[1][1])
-        asyc_reward_2 = self._asyc_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][1])
-        asyc_reward_3 = self._asyc_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[0][1])
-        asyc_reward = asyc_reward_0 * asyc_reward_1 * asyc_reward_2 * asyc_reward_3
+        async_reward_0 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][0])
+        async_reward_1 = self._async_reward_func(self.synced_feet_pairs[0][1], self.synced_feet_pairs[1][1])
+        async_reward_2 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][1])
+        async_reward_3 = self._async_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[0][1])
+        async_reward = async_reward_0 * async_reward_1 * async_reward_2 * async_reward_3
         # only enforce gait if cmd > 0
         cmd = torch.norm(env.command_manager.get_command("base_velocity"), dim=1)
-        return torch.where(cmd > 0.0, syc_reward * asyc_reward, 0.0)
+        return torch.where(cmd > 0.0, sync_reward * async_reward, 0.0)
 
-    def _syc_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
-        """Reward two feet being in sync."""
+    def _sync_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
+        """Reward synchronization of two feet."""
         air_time = self.contact_sensor.data.current_air_time
         contact_time = self.contact_sensor.data.current_contact_time
-        # squared error between air times plus squared error between contact time
+        # penalize the difference between the most recent air time and contact time of synced feet pairs.
         se_air = torch.clip(torch.square(air_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
         se_contact = torch.clip(torch.square(contact_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
         return torch.exp(-(se_air + se_contact) / self.std)
 
-    def _asyc_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
-        """Reward two feet being out of sync."""
+    def _async_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
+        """Reward anti-synchronization of two feet."""
         air_time = self.contact_sensor.data.current_air_time
         contact_time = self.contact_sensor.data.current_contact_time
-        # squared error between air time and contact time
+        # penalize the difference between opposing contact modes air time of feet 1 to contact time of feet 2
+        # and contact time of feet 1 to air time of feet 2) of feet pairs that are not in sync with each other.
         se_act_0 = torch.clip(torch.square(air_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
         se_act_1 = torch.clip(torch.square(contact_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
         return torch.exp(-(se_act_0 + se_act_1) / self.std)
