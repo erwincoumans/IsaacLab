@@ -71,7 +71,7 @@ class GaitReward(ManagerTermBase):
     quadrupedal gaits with two pairs of synchronized feet.
     """
 
-    def __init__(self, cfg: RewardTermCfg, env: RLTaskEnv):
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
         """Initialize the term.
 
         Args:
@@ -94,7 +94,7 @@ class GaitReward(ManagerTermBase):
         synced_feet_pair_1 = self.contact_sensor.find_bodies(synced_feet_pair_names[1])[0]
         self.synced_feet_pairs = [synced_feet_pair_0, synced_feet_pair_1]
 
-    def __call__(self, env: RLTaskEnv, std, max_err, synced_feet_pair_names, sensor_cfg) -> torch.Tensor:
+    def __call__(self, env: ManagerBasedRLEnv, std, max_err, synced_feet_pair_names, sensor_cfg) -> torch.Tensor:
         """Compute the reward.
 
         This reward is defined as a multiplication between six terms where two of them enforce pair feet
