@@ -19,7 +19,8 @@ EXTENSION_TOML_DATA = toml.load(os.path.join(EXTENSION_PATH, "config", "extensio
 INSTALL_REQUIRES = [
     # generic
     "numpy",
-    "torch>=2.2.2",
+    'torch==2.2.2; platform_system == "Windows"',
+    'torch>=2.2.2; platform_system != "Windows"',
     "prettytable==3.3.0",
     "tensordict",
     "toml",
